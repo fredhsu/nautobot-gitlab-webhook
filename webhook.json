@@ -1,0 +1,154 @@
+{
+    "event": "created",
+    "timestamp": "2021-04-28 04:45:05.009508+00:00",
+    "model": "interface",
+    "username": "fredlhsu",
+    "request_id": "d3e060b0-d5f2-4816-aef8-267b4d048f82",
+    "data": {
+        "id": "733c343d-1761-4fd4-9940-e38f4c37f056",
+        "url": "/api/dcim/interfaces/733c343d-1761-4fd4-9940-e38f4c37f056/",
+        "device": {
+            "id": "971b5d45-6c18-4f2f-b547-3bcd4483620c",
+            "url": "/api/dcim/devices/971b5d45-6c18-4f2f-b547-3bcd4483620c/",
+            "name": "dmz-tor226",
+            "display_name": "dmz-tor226"
+        },
+        "name": "Loopback 0",
+        "label": "",
+        "type": {
+            "value": "virtual",
+            "label": "Virtual"
+        },
+        "enabled": true,
+        "lag": null,
+        "mtu": null,
+        "mac_address": null,
+        "mgmt_only": false,
+        "description": "",
+        "mode": null,
+        "untagged_vlan": null,
+        "tagged_vlans": [],
+        "cable": null,
+        "cable_peer": null,
+        "cable_peer_type": null,
+        "connected_endpoint": null,
+        "connected_endpoint_type": null,
+        "connected_endpoint_reachable": null,
+        "tags": [],
+        "count_ipaddresses": 0,
+        "custom_fields": {}
+    }
+}
+------------
+[
+    2
+] Wed,
+28 Apr 2021 04: 45: 53 GMT 127.0.0.1 "POST / HTTP/1.1" 200 -
+Host: localhost: 9000
+Accept-Encoding: identity
+Content-Type: application/json
+Content-Length: 1089
+User-Agent: python-urllib3/1.26.4
+
+{
+    "event": "created",
+    "timestamp": "2021-04-28 04:45:51.080962+00:00",
+    "model": "ipaddress",
+    "username": "fredlhsu",
+    "request_id": "f92ad3fe-6ea9-4594-914d-f363e646255e",
+    "data": {
+        "id": "0ce693b1-3230-4cf7-84a5-02688e41cf92",
+        "url": "/api/ipam/ip-addresses/0ce693b1-3230-4cf7-84a5-02688e41cf92/",
+        "family": {
+            "value": 4,
+            "label": "IPv4"
+        },
+        "address": "1.1.1.1/32",
+        "vrf": null,
+        "tenant": null,
+        "status": {
+            "value": "active",
+            "label": "Active"
+        },
+        "role": null,
+        "assigned_object_type": "dcim.interface",
+        "assigned_object_id": "733c343d-1761-4fd4-9940-e38f4c37f056",
+        "assigned_object": {
+            "id": "733c343d-1761-4fd4-9940-e38f4c37f056",
+            "url": "/api/dcim/interfaces/733c343d-1761-4fd4-9940-e38f4c37f056/",
+            "device": {
+                "id": "971b5d45-6c18-4f2f-b547-3bcd4483620c",
+                "url": "/api/dcim/devices/971b5d45-6c18-4f2f-b547-3bcd4483620c/",
+                "name": "dmz-tor226",
+                "display_name": "dmz-tor226"
+            },
+            "name": "Loopback 0",
+            "cable": null
+        },
+        "nat_inside": null,
+        "nat_outside": null,
+        "dns_name": "",
+        "description": "",
+        "tags": [],
+        "custom_fields": {},
+        "created": "2021-04-28",
+        "last_updated": "2021-04-28T04:45:51.063892Z"
+    }
+}
+------------
+[
+    3
+] Wed,
+28 Apr 2021 04: 46: 38 GMT 127.0.0.1 "POST / HTTP/1.1" 200 -
+Host: localhost: 9000
+Accept-Encoding: identity
+Content-Type: application/json
+Content-Length: 1089
+User-Agent: python-urllib3/1.26.4
+
+{
+    "event": "updated",
+    "timestamp": "2021-04-28 04:46:36.234382+00:00",
+    "model": "ipaddress",
+    "username": "fredlhsu",
+    "request_id": "7437551f-5bcd-4941-8682-839d4bb45bd3",
+    "data": {
+        "id": "0ce693b1-3230-4cf7-84a5-02688e41cf92",
+        "url": "/api/ipam/ip-addresses/0ce693b1-3230-4cf7-84a5-02688e41cf92/",
+        "family": {
+            "value": 4,
+            "label": "IPv4"
+        },
+        "address": "1.1.1.2/32",
+        "vrf": null,
+        "tenant": null,
+        "status": {
+            "value": "active",
+            "label": "Active"
+        },
+        "role": null,
+        "assigned_object_type": "dcim.interface",
+        "assigned_object_id": "733c343d-1761-4fd4-9940-e38f4c37f056",
+        "assigned_object": {
+            "id": "733c343d-1761-4fd4-9940-e38f4c37f056",
+            "url": "/api/dcim/interfaces/733c343d-1761-4fd4-9940-e38f4c37f056/",
+            "device": {
+                "id": "971b5d45-6c18-4f2f-b547-3bcd4483620c",
+                "url": "/api/dcim/devices/971b5d45-6c18-4f2f-b547-3bcd4483620c/",
+                "name": "dmz-tor226",
+                "display_name": "dmz-tor226"
+            },
+            "name": "Loopback 0",
+            "cable": null
+        },
+        "nat_inside": null,
+        "nat_outside": null,
+        "dns_name": "",
+        "description": "",
+        "tags": [],
+        "custom_fields": {},
+        "created": "2021-04-28",
+        "last_updated": "2021-04-28T04:46:36.217049Z"
+    }
+}
+------------
