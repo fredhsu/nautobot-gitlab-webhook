@@ -541,7 +541,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nautobot-gitlab-webhook"
+name = "nautobot_gitlab_webhook"
 version = "0.1.0"
 dependencies = [
  "reqwest",
