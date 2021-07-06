@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Result, Value};
 use std::collections::HashMap;
 use std::error::Error;
+use std::str;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WebhookRequest {
@@ -12,14 +13,16 @@ pub struct WebhookRequest {
     pub model: String,
     pub username: String,
     pub request_id: String,
+    // pub data: IPAddress,
     pub data: Data,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "model")]
+// #[serde(tag = "model")]
+#[serde(untagged)]
 pub enum Data {
     #[serde(rename = "ipaddress")]
-    Ipaddress { id: String },
+    Ipaddress(IPAddress), // Ipaddress { id: String, address: String },
 }
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DeviceObject {
@@ -55,6 +58,21 @@ pub struct Nautobot {
     pub allow_insecure: bool,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GqlData {
+    pub data: IpAddresses,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct IpAddresses {
+    pub ip_addresses: Vec<IpAddressType>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct IpAddressType {
+    pub address: String,
+}
+
 impl Nautobot {
     pub fn query(
         &self,
@@ -66,11 +84,14 @@ impl Nautobot {
             .danger_accept_invalid_certs(self.allow_insecure)
             .build()
             .unwrap();
-        let res = client
+        let mut res = client
             .post(&self.url)
             .header(header::AUTHORIZATION, "Token ".to_owned() + &self.token)
             .json(&q)
             .send()?;
+        // let mut buf: Vec<u8> = vec![];
+        // res.copy_to(&mut buf)?;
+        // println!("response: {:?}", str::from_utf8(&buf)?);
         Ok(res)
     }
 }
@@ -81,29 +102,26 @@ pub struct IPAddress {
     pub url: String,
     pub family: Family,
     pub address: String,
-    pub vrf: String,
-    pub tenant: String,
-    pub status: String,
-    pub assigned_object: DeviceObject,
+    // pub vrf: String,
+    // pub tenant: String,
+    // pub status: String,
+    pub assigned_object: Option<DeviceObject>,
     pub tags: Vec<NestedTag>,
-    pub hostname: String,
-    pub token: String,
-    pub allow_insecure: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NestedTag {
-    id: String,
-    url: String,
-    name: String,
-    slug: String,
-    color: String,
+    pub id: String,
+    pub url: String,
+    pub name: String,
+    pub slug: String,
+    pub color: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Family {
-    label: String,
-    value: u8,
+    pub label: String,
+    pub value: u8,
 }
 
 #[cfg(test)]
@@ -118,11 +136,14 @@ mod tests {
             allow_insecure: true,
         };
         let query = Query {
-            query: r"query { ip_addresses { address dns_name}}".to_string(),
+            query: r#"query { ip_addresses(tag:"critical") { address }}"#.to_string(),
         };
         let result = nb.query(query);
         match result {
-            Ok(r) => assert_eq!(r.status(), 200),
+            Ok(r) => {
+                assert_eq!(r.status(), 200);
+                println!("{}", &r.text().unwrap());
+            }
             Err(e) => assert!(false, "Failed query: {}", e),
         }
     }
