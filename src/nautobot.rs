@@ -84,7 +84,7 @@ impl Nautobot {
             .danger_accept_invalid_certs(self.allow_insecure)
             .build()
             .unwrap();
-        let mut res = client
+        let res = client
             .post(&self.url)
             .header(header::AUTHORIZATION, "Token ".to_owned() + &self.token)
             .json(&q)

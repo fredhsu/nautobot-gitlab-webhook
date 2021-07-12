@@ -12,37 +12,52 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
+use std::fs::File;
+use std::io::prelude::*;
 use std::str;
 use warp::{Buf, Filter, Reply};
-
-fn add_critical_ip(ipaddr: IPAddress) -> avd::StandardACLs {
+fn add_critical_ip(ipaddr: IPAddress) {
     // Optimize by reducing the query only if a critical was changed
-    let critical_ips = ipaddr.tags.iter().filter(|t| t.slug == "critical");
+    // let critical_ips = ipaddr.tags.iter().filter(|t| t.slug == "critical");
     // Query nautobot for all critical ips to build acl from scratch (stateless)
+    generate_files();
+    // let query = query_nautobot();
+    // match query {
+    //     Ok(data) => build_acls(data.data.ip_addresses),
+    //     Err(e) => {
+    //         panic!("{}", e);
+    //     }
+    // }
+}
+
+fn generate_files() {
     let query = query_nautobot();
     match query {
-        Ok(data) => build_acls(data.data.ip_addresses),
+        Ok(data) => {
+            let ip_addresses = data.data.ip_addresses;
+            generate_avd(&ip_addresses);
+            generate_batfish(&ip_addresses);
+            // Commit
+        }
         Err(e) => {
             panic!("{}", e);
         }
     }
 }
-
-fn build_acls(ips: Vec<nautobot::IpAddressType>) -> avd::StandardACLs {
-    let mut sacls = HashMap::new();
-    let mut seqn = HashMap::new();
-    for (i, ip) in ips.iter().enumerate() {
-        let action = format!("permit ip any {}", ip.address);
-        let ale = avd::AccessListEntry { action: action };
-        seqn.insert((i as i32 + 1) * 10, ale);
-    }
-    let sacl = avd::StandardACL {
-        sequence_numbers: seqn,
-    };
-    sacls.insert("critical".to_owned(), sacl);
-    avd::StandardACLs {
-        standard_access_lists: sacls,
-    }
+fn generate_avd(ips: &Vec<nautobot::IpAddressType>) -> std::io::Result<()> {
+    println!("generate avd");
+    let avd_acls = avd::permit_from_ips(ips);
+    let yaml = serde_yaml::to_string(&avd_acls).unwrap();
+    let mut file = File::create("avd.yaml")?;
+    file.write_all(yaml.as_bytes())?;
+    Ok(())
+}
+fn generate_batfish(ips: &Vec<nautobot::IpAddressType>) -> std::io::Result<()> {
+    let bfpolicy = batfish::permit_from_ips(ips);
+    let bfjson = serde_json::to_string(&bfpolicy).unwrap();
+    let mut file = File::create("bfpolicy.json")?;
+    file.write_all(bfjson.as_bytes())?;
+    Ok(())
 }
 
 fn query_nautobot() -> Result<nautobot::GqlData, Box<dyn Error>> {
@@ -74,7 +89,13 @@ pub async fn post_form(body: bytes::Bytes) -> Result<impl warp::Reply, warp::Rej
     // Pattern match to get ip address from enum possibilities / tags
     match ipaddr {
         Ipaddress(ip) => {
-            let aclmap = add_critical_ip(ip);
+            // IP address doesn't really matter.. really just using this for error checking
+            let aclmap = tokio::task::spawn_blocking(|| {
+                add_critical_ip(ip);
+            })
+            .await
+            .expect("Task panicked");
+            // let aclmap = add_critical_ip(ip);
             let yaml = serde_yaml::to_string(&aclmap);
             println!("Generated Yaml: {}", yaml.unwrap());
             // Build batfish

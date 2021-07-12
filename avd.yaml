@@ -1,0 +1,12 @@
+---
+standard_access_lists:
+  critical:
+    sequence_numbers:
+      30:
+        action: permit ip any 172.22.22.10/24
+      20:
+        action: permit ip any 8.8.8.8/32
+      40:
+        action: permit ip any 172.22.22.40/24
+      10:
+        action: permit ip any 8.8.8.4/32
