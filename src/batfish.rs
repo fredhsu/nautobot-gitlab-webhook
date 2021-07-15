@@ -1,10 +1,8 @@
 use serde::{Deserialize, Serialize};
 #[path = "avd.rs"]
 mod avd;
-use avd::StandardACL;
 #[path = "nautobot.rs"]
 mod nautobot;
-use nautobot::IpAddressType;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BatfishPolicy {
@@ -33,17 +31,3 @@ pub fn permit_from_ips(ips: &Vec<crate::nautobot::IpAddressType>) -> BatfishPoli
     }
     BatfishPolicy { permit: bfes }
 }
-impl BatfishPolicy {
-    // pub fn to_avd() -> StandardACL {}
-}
-/*
-pub fn from_avd(sacls: StandardACLs) -> BatfishPolicy {
-    let mut bfEntries = Vec::new();
-    for (key, val) in sacls.standard_access_lists.iter() {
-        for (seq, entry) in val.sequence_numbers.iter() {
-
-        }
-    }
-    let bfPolicy = BatfishPolicy { permit: bfEntries };
-}
-*/

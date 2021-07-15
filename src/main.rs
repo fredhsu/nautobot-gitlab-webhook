@@ -5,62 +5,75 @@ mod nautobot;
 
 use crate::nautobot::Data::Ipaddress;
 use crate::nautobot::WebhookRequest;
-// use serde_json::Result;
-use bytes;
+use log::{debug, info};
 use nautobot::{IPAddress, Nautobot, Query};
-use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::error::Error;
-use std::fs::File;
-use std::io::prelude::*;
 use std::str;
-use warp::{Buf, Filter, Reply};
-fn add_critical_ip(ipaddr: IPAddress) {
-    // Optimize by reducing the query only if a critical was changed
-    // let critical_ips = ipaddr.tags.iter().filter(|t| t.slug == "critical");
-    // Query nautobot for all critical ips to build acl from scratch (stateless)
-    generate_files();
-    // let query = query_nautobot();
-    // match query {
-    //     Ok(data) => build_acls(data.data.ip_addresses),
-    //     Err(e) => {
-    //         panic!("{}", e);
-    //     }
-    // }
+use warp::Filter;
+
+#[derive(Debug)]
+pub enum Error {
+    YAMLError(serde_yaml::Error),
+    JSONError(serde_json::Error),
+    CommitError(gitlab::Error),
 }
 
-fn generate_files() {
+fn add_critical_ip(_ipaddr: IPAddress) -> Result<gitlab::CommitResponse, Error> {
+    // Optimize by reducing the query only if a critical was changed
+    // let critical_ips = ipaddr.tags.iter().filter(|t| t.slug == "critical");
+    let files = generate_files()?;
+    let gl = gitlab::Gitlab {
+        host: "dmz-gitlab.sjc.aristanetworks.com".to_owned(),
+        project: 5,
+        branch: "nautobot".to_owned(),
+        token: "NnnPwyihFTVRsnqk_dfi".to_owned(),
+    };
+    let cr = gl.commit_files(files).map_err(Error::CommitError)?;
+    Ok(cr)
+}
+
+/// generate_files() queries Nautobot for ip addresses that are critical, then generates the yaml and json for avd and batfish respectively
+fn generate_files() -> Result<Vec<gitlab::FileEntry>, Error> {
     let query = query_nautobot();
     match query {
         Ok(data) => {
             let ip_addresses = data.data.ip_addresses;
-            generate_avd(&ip_addresses);
-            generate_batfish(&ip_addresses);
-            // Commit
+            let avd_yaml = generate_avd(&ip_addresses).map_err(Error::YAMLError)?;
+            let avd_file = gitlab::FileEntry {
+                file_path: "avd.yaml".to_owned(),
+                content: avd_yaml,
+            };
+            let bf_json = generate_batfish(&ip_addresses).map_err(Error::JSONError)?;
+            let bf_file = gitlab::FileEntry {
+                file_path: "bf.json".to_owned(),
+                content: bf_json,
+            };
+            let mut files = Vec::new();
+            files.push(avd_file);
+            files.push(bf_file);
+            Ok(files)
         }
         Err(e) => {
             panic!("{}", e);
         }
     }
 }
-fn generate_avd(ips: &Vec<nautobot::IpAddressType>) -> std::io::Result<()> {
-    println!("generate avd");
+
+fn generate_avd(ips: &Vec<nautobot::IpAddressType>) -> Result<String, serde_yaml::Error> {
+    info!("generating avd");
     let avd_acls = avd::permit_from_ips(ips);
-    let yaml = serde_yaml::to_string(&avd_acls).unwrap();
-    let mut file = File::create("avd.yaml")?;
-    file.write_all(yaml.as_bytes())?;
-    Ok(())
+    let yaml = serde_yaml::to_string(&avd_acls)?;
+    debug!("Generated AVD: \n{}", &yaml);
+    Ok(yaml)
 }
-fn generate_batfish(ips: &Vec<nautobot::IpAddressType>) -> std::io::Result<()> {
+fn generate_batfish(ips: &Vec<nautobot::IpAddressType>) -> Result<String, serde_json::Error> {
+    info!("generating batfish");
     let bfpolicy = batfish::permit_from_ips(ips);
-    let bfjson = serde_json::to_string(&bfpolicy).unwrap();
-    let mut file = File::create("bfpolicy.json")?;
-    file.write_all(bfjson.as_bytes())?;
-    Ok(())
+    let bfjson = serde_json::to_string(&bfpolicy)?;
+    debug!("Generated batfish: \n{}", &bfjson);
+    Ok(bfjson)
 }
 
-fn query_nautobot() -> Result<nautobot::GqlData, Box<dyn Error>> {
+fn query_nautobot() -> Result<nautobot::GqlData, Box<dyn std::error::Error>> {
     let nb = Nautobot {
         hostname: "nautobot".to_string(),
         token: "f6df868dfa674ff1d5fdfaac169eda87a55d2d93".to_string(),
@@ -69,7 +82,7 @@ fn query_nautobot() -> Result<nautobot::GqlData, Box<dyn Error>> {
     };
     let tag = "\"critical\"".to_string();
     let query_string = format!("query {{ip_addresses(tag:{}){{address dns_name}}}}", tag);
-    println!("query_string: {}", query_string);
+    debug!("query_string: {}", query_string);
     let query = Query {
         query: query_string,
     };
@@ -98,36 +111,15 @@ pub async fn post_form(body: bytes::Bytes) -> Result<impl warp::Reply, warp::Rej
             // let aclmap = add_critical_ip(ip);
             let yaml = serde_yaml::to_string(&aclmap);
             println!("Generated Yaml: {}", yaml.unwrap());
-            // Build batfish
-            // Commit to repo
         }
     }
     // TODO: add reply
     Ok(warp::reply())
-    // println!(
-    //     "postform address : {:?} name: {}",
-    //     webhook.data, webhook.data.assigned_object.name
-    // );
-    // let token = String::from("672ace375be2dcccb85fa6add30138");
-    // let form = reqwest::multipart::Form::new()
-    //     .text("token", token)
-    //     .text("ref", "nautobot")
-    //     .text("variables[ADDRESS]", webhook.data.address)
-    //     .text("variables[NAME]", webhook.data.assigned_object.name);
-    // let url =
-    //     String::from("http://dmz-gitlab.sjc.aristanetworks.com/api/v4/projects/5/trigger/pipeline");
-    // let url = String::from(
-    //     "http://dmz-gitlab.sjc.aristanetworks.com/api/v4/projects/5/ref/nautobot/trigger/pipeline",
-    // );
-    // let response = Client::new().post(url).multipart(form).send().await;
-    // match response {
-    //     Ok(_) => Ok(warp::reply()),
-    //     Err(_) => Err(warp::reject::not_found()),
-    // }
 }
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
     let hook = warp::post()
         .and(warp::path("nautobot"))
         .and(warp::body::content_length_limit(1024 * 32))
@@ -154,10 +146,41 @@ mod tests {
             id: "".to_owned(),
             url: "".to_owned(),
         };
-        add_critical_ip(ipaddr);
-        // match result {
-        //     Ok(r) => assert_eq!(r.status(), 200),
-        //     Err(e) => assert!(false, "Failed query: {}", e),
-        // }
+        let result = add_critical_ip(ipaddr);
+        match result {
+            Ok(r) => assert!(!r.id.is_empty()),
+            Err(e) => assert!(false, "Failed to add ip: {:?}", e),
+        }
+    }
+    #[test]
+    fn test_generate_avd() {
+        let ipaddr = nautobot::IpAddressType {
+            address: "1.1.1.1/32".to_owned(),
+        };
+        let mut ip_addresses = Vec::new();
+        ip_addresses.push(ipaddr);
+        let avd_yaml = generate_avd(&ip_addresses);
+        match avd_yaml {
+            Ok(y) => {
+                assert!(y.ends_with("permit ip any 1.1.1.1/32\n"))
+            }
+            Err(e) => assert!(false, "Failed to generate AVD: {}", e),
+        }
+    }
+    #[test]
+    fn test_generate_batfish() {
+        let ipaddr = nautobot::IpAddressType {
+            address: "1.1.1.1/32".to_owned(),
+        };
+        let mut ip_addresses = Vec::new();
+        ip_addresses.push(ipaddr);
+        let bf_json = generate_batfish(&ip_addresses);
+        match bf_json {
+            Ok(j) => {
+                println!("{}", j);
+                assert!(j.contains("1.1.1.1/32"))
+            }
+            Err(e) => assert!(false, "Failed to generate Batfish: {}", e),
+        }
     }
 }

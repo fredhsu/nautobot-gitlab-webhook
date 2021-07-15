@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-// #[path = "nautobot.rs"]
-// mod nautobot;
-// use nautobot::IpAddressType;
 
 #[derive(Deserialize, Serialize)]
 pub struct StandardACLs {

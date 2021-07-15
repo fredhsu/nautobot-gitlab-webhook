@@ -1,6 +1,6 @@
-use reqwest::header;
+// use log::{debug, info};
 use serde::{Deserialize, Serialize};
-// pub type Result<T, E = Error> = std::result::Result<T, E>;
+use std::str;
 
 #[derive(Debug)]
 pub enum Error {
@@ -8,12 +8,18 @@ pub enum Error {
     ReqwestError(reqwest::Error),
 }
 
+#[derive(Clone, Debug)]
+pub struct FileEntry {
+    pub file_path: String,
+    pub content: String,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Gitlab {
-    host: String,
-    project: u8,
-    branch: String,
-    token: String,
+    pub host: String,
+    pub project: u8,
+    pub branch: String,
+    pub token: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -33,7 +39,7 @@ pub struct CommitAction {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CommitResponse {
-    id: String,
+    pub id: String,
     short_id: String,
     title: String,
     author_name: String,
@@ -59,20 +65,20 @@ pub struct Stats {
     total: u8,
 }
 impl Gitlab {
+    // TODO: Add a new() constructor - check for branch/project on construction
     pub fn commits_url(&self) -> String {
         format!(
             "http://{}/api/v4/projects/{}/repository/commits",
             self.host, self.project
         )
     }
-    pub fn commit_files(&self, files: Vec<(String, String)>) -> Result<CommitResponse, Error> {
+    pub fn commit_files(&self, files: Vec<FileEntry>) -> Result<CommitResponse, Error> {
         let mut actions = Vec::new();
         for file in files {
-            let (file_path, content) = file;
             actions.push(CommitAction {
                 action: "update".to_owned(),
-                file_path,
-                content,
+                file_path: file.file_path,
+                content: file.content,
             });
         }
         self.commit_actions(actions, "updating files".to_owned())
@@ -80,27 +86,25 @@ impl Gitlab {
     pub fn commit_actions(
         &self,
         actions: Vec<CommitAction>,
-        message: String,
+        commit_message: String,
     ) -> Result<CommitResponse, Error> {
+        // TODO: Check for branch
         let commit = Commit {
             id: self.project,
             branch: self.branch.to_owned(),
-            commit_message: message,
-            actions: actions,
+            commit_message,
+            actions,
         };
-        let j = serde_json::to_string(&commit).map_err(Error::SerdeError)?;
         let client = reqwest::blocking::Client::builder()
             .build()
             .map_err(Error::ReqwestError)?;
-        let mut res = client
+        let res = client
             .post(&self.commits_url())
             .header("PRIVATE-TOKEN", &self.token)
             .json(&commit)
             .send()
             .map_err(Error::ReqwestError)?;
-        // let mut buf: Vec<u8> = vec![];
-        // res.copy_to(&mut buf).map_err(Error::ReqwestError)?;
-        // println!("response: {}", String::from_utf8(buf).unwrap());
+        //TODO: Add some error handling for 4xx responses
         let cr: CommitResponse = res.json().map_err(Error::ReqwestError)?;
         Ok(cr)
     }
@@ -117,15 +121,11 @@ mod tests {
             branch: "nautobot".to_owned(),
             token: "NnnPwyihFTVRsnqk_dfi".to_owned(),
         };
-        let mut files = Vec::new();
-        files.push(("test.txt".to_owned(), "test".to_owned()));
-        let result = gl.commit_files(files);
-        match result {
-            Ok(r) => {
-                println!("{:?}", r.title);
-                assert_eq!(r.author_name, "nautobot-commit".to_owned());
-            }
-            Err(e) => assert!(false, "Failed commit: {:?}", e),
-        }
+        let files = vec![FileEntry {
+            file_path: "test.txt".to_owned(),
+            content: "test".to_owned(),
+        }];
+        let result = gl.commit_files(files).unwrap();
+        assert_eq!(result.author_name, "nautobot-commit".to_owned());
     }
 }

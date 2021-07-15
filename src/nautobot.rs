@@ -1,8 +1,5 @@
 use reqwest::header;
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::{Result, Value};
-use std::collections::HashMap;
 use std::error::Error;
 use std::str;
 
@@ -18,7 +15,6 @@ pub struct WebhookRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-// #[serde(tag = "model")]
 #[serde(untagged)]
 pub enum Data {
     #[serde(rename = "ipaddress")]
@@ -89,9 +85,6 @@ impl Nautobot {
             .header(header::AUTHORIZATION, "Token ".to_owned() + &self.token)
             .json(&q)
             .send()?;
-        // let mut buf: Vec<u8> = vec![];
-        // res.copy_to(&mut buf)?;
-        // println!("response: {:?}", str::from_utf8(&buf)?);
         Ok(res)
     }
 }
