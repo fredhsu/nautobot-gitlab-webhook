@@ -61,14 +61,14 @@ fn generate_files() -> Result<Vec<gitlab::FileEntry>, Error> {
     }
 }
 
-fn generate_avd(ips: &Vec<nautobot::IpAddressType>) -> Result<String, serde_yaml::Error> {
+fn generate_avd(ips: &[nautobot::IpAddressType]) -> Result<String, serde_yaml::Error> {
     info!("generating avd");
     let avd_acls = avd::permit_from_ips(ips);
     let yaml = serde_yaml::to_string(&avd_acls)?;
     debug!("Generated AVD: \n{}", &yaml);
     Ok(yaml)
 }
-fn generate_batfish(ips: &Vec<nautobot::IpAddressType>) -> Result<String, serde_json::Error> {
+fn generate_batfish(ips: &[nautobot::IpAddressType]) -> Result<String, serde_json::Error> {
     info!("generating batfish");
     let bfpolicy = batfish::permit_from_ips(ips);
     let bfjson = serde_json::to_string(&bfpolicy)?;

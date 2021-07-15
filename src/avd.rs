@@ -16,7 +16,7 @@ pub struct AccessListEntry {
     pub action: String,
 }
 
-pub fn permit_from_ips(ips: &Vec<crate::nautobot::IpAddressType>) -> StandardACLs {
+pub fn permit_from_ips(ips: &[crate::nautobot::IpAddressType]) -> StandardACLs {
     let mut sacls = HashMap::new();
     let mut seqn = HashMap::new();
     for (i, ip) in ips.iter().enumerate() {

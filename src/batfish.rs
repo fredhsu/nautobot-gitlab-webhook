@@ -14,7 +14,7 @@ pub struct BatfishEntry {
     dst_ports: Vec<String>,
 }
 
-pub fn permit_from_ips(ips: &Vec<crate::nautobot::IpAddressType>) -> BatfishPolicy {
+pub fn permit_from_ips(ips: &[crate::nautobot::IpAddressType]) -> BatfishPolicy {
     let mut bfes = Vec::new();
     for ip in ips {
         let bfe = BatfishEntry {

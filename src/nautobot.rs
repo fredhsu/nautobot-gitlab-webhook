@@ -131,13 +131,7 @@ mod tests {
         let query = Query {
             query: r#"query { ip_addresses(tag:"critical") { address }}"#.to_string(),
         };
-        let result = nb.query(query);
-        match result {
-            Ok(r) => {
-                assert_eq!(r.status(), 200);
-                println!("{}", &r.text().unwrap());
-            }
-            Err(e) => assert!(false, "Failed query: {}", e),
-        }
+        let result = nb.query(query).unwrap();
+        assert_eq!(result.status(), 200);
     }
 }
