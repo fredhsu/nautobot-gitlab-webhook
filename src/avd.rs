@@ -21,7 +21,7 @@ pub fn permit_from_ips(ips: &Vec<crate::nautobot::IpAddressType>) -> StandardACL
     let mut seqn = HashMap::new();
     for (i, ip) in ips.iter().enumerate() {
         let action = format!("permit ip any {}", ip.address);
-        let ale = AccessListEntry { action: action };
+        let ale = AccessListEntry { action };
         seqn.insert((i as i32 + 1) * 10, ale);
     }
     let sacl = StandardACL {

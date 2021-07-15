@@ -15,6 +15,8 @@ pub enum Error {
     YAMLError(serde_yaml::Error),
     JSONError(serde_json::Error),
     CommitError(gitlab::Error),
+    WarpError(warp::Rejection),
+    TokioError(tokio::task::JoinError),
 }
 
 fn add_critical_ip(_ipaddr: IPAddress) -> Result<gitlab::CommitResponse, Error> {
@@ -47,9 +49,10 @@ fn generate_files() -> Result<Vec<gitlab::FileEntry>, Error> {
                 file_path: "bf.json".to_owned(),
                 content: bf_json,
             };
-            let mut files = Vec::new();
-            files.push(avd_file);
-            files.push(bf_file);
+            // let mut files = Vec::new();
+            // files.push(avd_file);
+            // files.push(bf_file);
+            let files = vec![avd_file, bf_file];
             Ok(files)
         }
         Err(e) => {
@@ -94,23 +97,17 @@ fn query_nautobot() -> Result<nautobot::GqlData, Box<dyn std::error::Error>> {
 }
 pub async fn post_form(body: bytes::Bytes) -> Result<impl warp::Reply, warp::Rejection> {
     let bodystr = str::from_utf8(body.as_ref()).unwrap();
-    println!("{:?}", bodystr);
     // Parse webhook data into WebhookRequest struct
     let webhook: WebhookRequest = serde_json::from_str(bodystr).unwrap();
     let ipaddr = webhook.data;
-    println!("{:?}", ipaddr);
     // Pattern match to get ip address from enum possibilities / tags
     match ipaddr {
         Ipaddress(ip) => {
             // IP address doesn't really matter.. really just using this for error checking
-            let aclmap = tokio::task::spawn_blocking(|| {
-                add_critical_ip(ip);
-            })
-            .await
-            .expect("Task panicked");
-            // let aclmap = add_critical_ip(ip);
-            let yaml = serde_yaml::to_string(&aclmap);
-            println!("Generated Yaml: {}", yaml.unwrap());
+            // Spawning as a blocking thread
+            let _aclmap = tokio::task::spawn_blocking(move || add_critical_ip(ip).unwrap())
+                .await
+                .unwrap();
         }
     }
     // TODO: add reply
@@ -146,41 +143,25 @@ mod tests {
             id: "".to_owned(),
             url: "".to_owned(),
         };
-        let result = add_critical_ip(ipaddr);
-        match result {
-            Ok(r) => assert!(!r.id.is_empty()),
-            Err(e) => assert!(false, "Failed to add ip: {:?}", e),
-        }
+        let result = add_critical_ip(ipaddr).unwrap();
+        assert!(!result.id.is_empty());
     }
     #[test]
     fn test_generate_avd() {
         let ipaddr = nautobot::IpAddressType {
             address: "1.1.1.1/32".to_owned(),
         };
-        let mut ip_addresses = Vec::new();
-        ip_addresses.push(ipaddr);
-        let avd_yaml = generate_avd(&ip_addresses);
-        match avd_yaml {
-            Ok(y) => {
-                assert!(y.ends_with("permit ip any 1.1.1.1/32\n"))
-            }
-            Err(e) => assert!(false, "Failed to generate AVD: {}", e),
-        }
+        let ip_addresses = vec![ipaddr];
+        let avd_yaml = generate_avd(&ip_addresses).unwrap();
+        assert!(avd_yaml.ends_with("permit ip any 1.1.1.1/32\n"))
     }
     #[test]
     fn test_generate_batfish() {
         let ipaddr = nautobot::IpAddressType {
             address: "1.1.1.1/32".to_owned(),
         };
-        let mut ip_addresses = Vec::new();
-        ip_addresses.push(ipaddr);
-        let bf_json = generate_batfish(&ip_addresses);
-        match bf_json {
-            Ok(j) => {
-                println!("{}", j);
-                assert!(j.contains("1.1.1.1/32"))
-            }
-            Err(e) => assert!(false, "Failed to generate Batfish: {}", e),
-        }
+        let ip_addresses = vec![ipaddr];
+        let bf_json = generate_batfish(&ip_addresses).unwrap();
+        assert!(bf_json.contains("1.1.1.1/32"))
     }
 }

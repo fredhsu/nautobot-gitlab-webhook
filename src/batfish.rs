@@ -1,8 +1,4 @@
 use serde::{Deserialize, Serialize};
-#[path = "avd.rs"]
-mod avd;
-#[path = "nautobot.rs"]
-mod nautobot;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BatfishPolicy {
