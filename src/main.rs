@@ -49,9 +49,6 @@ fn generate_files() -> Result<Vec<gitlab::FileEntry>, Error> {
                 file_path: "bf.json".to_owned(),
                 content: bf_json,
             };
-            // let mut files = Vec::new();
-            // files.push(avd_file);
-            // files.push(bf_file);
             let files = vec![avd_file, bf_file];
             Ok(files)
         }
@@ -101,15 +98,19 @@ pub async fn post_form(body: bytes::Bytes) -> Result<impl warp::Reply, warp::Rej
     let webhook: WebhookRequest = serde_json::from_str(bodystr).unwrap();
     let ipaddr = webhook.data;
     // Pattern match to get ip address from enum possibilities / tags
-    match ipaddr {
+    let _aclmap = match ipaddr {
         Ipaddress(ip) => {
             // IP address doesn't really matter.. really just using this for error checking
             // Spawning as a blocking thread
-            let _aclmap = tokio::task::spawn_blocking(move || add_critical_ip(ip).unwrap())
-                .await
-                .unwrap();
+            tokio::task::spawn_blocking(move || {
+                let res = add_critical_ip(ip).unwrap();
+
+                debug!("Files commited with response: {:?}", res);
+            })
+            .await
+            .unwrap();
         }
-    }
+    };
     // TODO: add reply
     Ok(warp::reply())
 }
