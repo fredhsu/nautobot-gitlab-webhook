@@ -7,6 +7,7 @@ use crate::nautobot::Data::Ipaddress;
 use crate::nautobot::WebhookRequest;
 use log::{debug, info};
 use nautobot::{IPAddress, Nautobot, Query};
+use std::env;
 use std::str;
 use warp::Filter;
 
@@ -23,6 +24,11 @@ fn add_critical_ip(_ipaddr: IPAddress) -> Result<gitlab::CommitResponse, Error> 
     // Optimize by reducing the query only if a critical was changed
     // let critical_ips = ipaddr.tags.iter().filter(|t| t.slug == "critical");
     let files = generate_files()?;
+    let host = env::var("GITLAB_HOST").is_err();
+    let project = env::var("GITLAB_PROJECT").is_err();
+    let branch = env::var("GITLAB_BRANCH").is_err();
+    let token = env::var("GITLAB_TOKEN").is_err();
+
     let gl = gitlab::Gitlab {
         host: "dmz-gitlab.sjc.aristanetworks.com".to_owned(),
         project: 5,
@@ -74,11 +80,16 @@ fn generate_batfish(ips: &[nautobot::IpAddressType]) -> Result<String, serde_jso
 }
 
 fn query_nautobot() -> Result<nautobot::GqlData, Box<dyn std::error::Error>> {
+    let hostname = env::var("NAUTOBOT").unwrap_or("nautobot".to_string());
+    let url = format!("https://{}/api/graphql/", hostname);
+    let allow_insecure = "true" == env::var("NAUTOBOT_INSECURE").unwrap_or("true".to_string());
+    let token = env::var("NAUTOBOT_TOKEN")
+        .unwrap_or("f6df868dfa674ff1d5fdfaac169eda87a55d2d93".to_string());
     let nb = Nautobot {
-        hostname: "nautobot".to_string(),
-        token: "f6df868dfa674ff1d5fdfaac169eda87a55d2d93".to_string(),
-        url: "https://nautobot/api/graphql/".to_string(),
-        allow_insecure: true,
+        hostname,
+        token,
+        url,
+        allow_insecure,
     };
     let tag = "\"critical\"".to_string();
     let query_string = format!("query {{ip_addresses(tag:{}){{address dns_name}}}}", tag);
@@ -107,8 +118,7 @@ pub async fn post_form(body: bytes::Bytes) -> Result<impl warp::Reply, warp::Rej
 
                 debug!("Files commited with response: {:?}", res);
             })
-            .await
-            .unwrap();
+            .await;
         }
     };
     // TODO: add reply
@@ -144,8 +154,7 @@ mod tests {
             id: "".to_owned(),
             url: "".to_owned(),
         };
-        let result = add_critical_ip(ipaddr).unwrap();
-        assert!(!result.id.is_empty());
+        assert!(add_critical_ip(ipaddr).is_ok());
     }
     #[test]
     fn test_generate_avd() {
