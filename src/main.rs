@@ -3,10 +3,9 @@ mod batfish;
 mod gitlab;
 mod nautobot;
 
-use crate::nautobot::Data::Ipaddress;
-use crate::nautobot::WebhookRequest;
 use log::{debug, info};
-use nautobot::{IPAddress, Nautobot, Query};
+use nautobot::Data::Ipaddress;
+use nautobot::{IPAddress, Nautobot, Query, WebhookRequest};
 use std::env;
 use std::str;
 use warp::Filter;
@@ -20,21 +19,24 @@ pub enum Error {
     TokioError(tokio::task::JoinError),
 }
 
+fn get_gitlab_from_env() -> gitlab::Gitlab {
+    let host = env::var("GITLAB_HOST").unwrap_or(String::from("dmz-gitlab"));
+    let project = env::var("GITLAB_PROJECT").unwrap_or(String::from("5"));
+    let branch = env::var("GITLAB_BRANCH").unwrap_or(String::from("nautobot"));
+    let token = env::var("GITLAB_TOKEN").unwrap_or(String::from("NnnPwyihFTVRsnqk_dfi"));
+    gitlab::Gitlab {
+        host,
+        project: project.parse().unwrap_or(5),
+        branch,
+        token,
+    }
+}
+
 fn add_critical_ip(_ipaddr: IPAddress) -> Result<gitlab::CommitResponse, Error> {
     // Optimize by reducing the query only if a critical was changed
     // let critical_ips = ipaddr.tags.iter().filter(|t| t.slug == "critical");
     let files = generate_files()?;
-    let host = env::var("GITLAB_HOST").is_err();
-    let project = env::var("GITLAB_PROJECT").is_err();
-    let branch = env::var("GITLAB_BRANCH").is_err();
-    let token = env::var("GITLAB_TOKEN").is_err();
-
-    let gl = gitlab::Gitlab {
-        host: "dmz-gitlab.sjc.aristanetworks.com".to_owned(),
-        project: 5,
-        branch: "nautobot".to_owned(),
-        token: "NnnPwyihFTVRsnqk_dfi".to_owned(),
-    };
+    let gl = get_gitlab_from_env();
     let cr = gl.commit_files(files).map_err(Error::CommitError)?;
     Ok(cr)
 }

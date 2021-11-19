@@ -18,9 +18,9 @@ pub fn permit_from_ips(ips: &[crate::nautobot::IpAddressType]) -> BatfishPolicy 
     let mut bfes = Vec::new();
     for ip in ips {
         let bfe = BatfishEntry {
-            name: "".to_owned(),
+            name: String::from(""),
             dst_ips: ip.address.clone(),
-            ip_protocols: vec!["tcp".to_owned()],
+            ip_protocols: vec![String::from("tcp")],
             dst_ports: Vec::new(),
         };
         bfes.push(bfe);
